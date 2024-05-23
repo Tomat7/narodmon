@@ -1,0 +1,46 @@
+#!/bin/bash
+#
+RED='\033[0;91m'
+GRE="\033[0;32m"
+YEL="\033[0;93m"
+YEB="\033[1;33m"
+BLU='\033[0;94m'
+WHI='\033[0;97m'
+NC='\033[0m' # No Color
+# =======================
+
+NOW=`date '+%Y-%m-%d %H:%M'`
+echo $NOW
+
+
+echo -e $RED
+read -p "==== Warning! Will LOST ALL CHANGES! (Y/N): " ANS
+
+echo -e $NC
+
+if [ "$ANS" == "Y" ]
+then
+    cd ..
+    pwd
+    make clean
+    echo -e $YEL ==== Doing git STASH. $NC
+    git stash save "$NOW"
+    echo -e $GRE ==== Doing git PULL. $NC
+    git pull -v 
+# --------------
+    echo -e $RED
+    read -p "==== Warning! Will CLEAR STASH & LOST ALL CHANGES! (Y/N): " ANS
+    echo -e $NC
+    if [ "$ANS" == "Y" ]
+    then
+	echo -e $YEL ==== Doing git STASH CLEAR. $NC
+	git stash clear
+    else
+	echo -e $BLU ==== STASH SAVED! Use: 'git stash pop/apply' $NC
+    fi
+# -------------
+    echo -e $GRE ==== Finished. $NC
+else
+    echo -e $BLU ==== Doing nothing. Relax and Bye! $NC
+fi
+

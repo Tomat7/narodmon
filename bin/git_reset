@@ -1,0 +1,23 @@
+#! /bin/sh
+#
+# =======================
+#echo Warning! Will drop all changes! Y/N
+read -p "Warning! Will drop all changes! (Y/N): " ANS
+
+#echo As-is
+#echo $ANS
+#echo Ones
+#echo '$ANS'
+
+#echo Doubles
+#echo "$ANS"
+
+if [ "$ANS" == "Y" ]
+then
+    echo Doing RESET git.
+    git reset --hard HEAD
+else
+    echo Thanks. Bye.
+fi
+
+

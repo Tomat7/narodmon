@@ -1,0 +1,32 @@
+CC=cc
+CFLAGS=-c -Wall -MD -MP
+LDFLAGS=
+SOURCES=plc32.cpp plc_read.cpp
+OBJECTS=$(SOURCES:.cpp=.o)
+EXECUTABLE=hello
+LIBS= -lconfig -lmodbus
+#INCLUDES = -I/usr/include/modbus
+
+all: hello
+
+p32:
+	$(CC) plc32.c -o plc32 $(INCLUDES) $(LIBS)
+
+p39:
+	$(CC) plc39.c -o plc39 $(INCLUDES) $(LIBS)
+
+write:
+	$(CC) mb-write.c -o mb-write $(INCLUDES) $(LIBS)
+
+
+$(EXECUTABLE): $(OBJECTS) 
+	$(CC) $(LDFLAGS) $(OBJECTS) -o $@
+
+.cpp.o:
+	$(CC) $(CFLAGS) $< -o $@
+
+clean:
+	rm -rf *.o hello
+
+include $(wildcard *.d) 
+
