@@ -1,0 +1,18 @@
+#! /bin/sh
+#
+# =======================
+#echo Warning! Will drop all changes! Y/N
+cd ..
+CURDIR=${PWD##*/}
+read -p "Warning! Will create NEW SSH-key on '~/.ssh' (Y/N): " ANS
+
+
+if [ "$ANS" == "Y" ]
+then
+    echo Creation of new SSH ed25519 key with 'istarkov@yandex.ru'.
+    ssh-keygen -t ed25519 -C "istarkov@yandex.ru"
+else
+    echo Thanks. Bye.
+fi
+
+
