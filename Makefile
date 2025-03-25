@@ -1,147 +1,162 @@
-CC=g++
-#CC=/usr/lib/gcc-astra/bin/g++
+# https://microsin.net/programming/arm/learning-makefile-with-simple-examples.html
+# https://runebook.dev/ru/docs/gnu_make/foreach-function
+# https://habr.com/ru/articles/534304/
+# https://wiki.gentoo.org/wiki/GCC_optimization
+# https://microsin.net/programming/arm/install-linux-in-microsoft-windows10-via-wsl.html
+#
+# To view defaults (implicit variables): make -p
+# or https://runebook.dev/ru/docs/gnu_make/-index-
+# Default:
+# COMPILE.cpp = $(COMPILE.cc)
+# COMPILE.cc = $(CXX) $(CXXFLAGS) $(CPPFLAGS) $(TARGET_ARCH) -c
+# LINK.o = $(CC) $(LDFLAGS) $(TARGET_ARCH)
 
 .DEFAULT_GOAL := all
+$(info === The GOALS is: $(MAKECMDGOALS))
 
-CPP_VER= -std=c++17
-OBJDIR=./tmp/obj
+# === COMMON: Version/standard & Directories & files & libraries ===
+CXX_VER=c++20
+OUTFILE=plc
+OBJDIR =./tmp
+SUBDIRS= 
+#include sources
+INCLUDES = -I.
+LIBS=libmodbus
+#libconfig++ open62541
+LDLIBS= -lrt -lpthread -lmbedtls 
 
-SRCDIR1=./
-SRCDIR2=include
-SRCDIR3=sources
-##SRCDIR1=./
+# === C/CPP flags configuration ===
+CXXFLAGS= -Wall -std=$(CXX_VER)
+LDFLAGS = -Wall -std=$(CXX_VER)
+DEPFLAGS= -MD -MF $(OBJDIR)
+OPTFLAGS= -flto=auto -O2
+#-Os -s -Wl,--as-needed
 
-LIBS= -lrt -lpthread
-LIBCONFIG=$(shell pkg-config libconfig++ --libs)
-LIBMODBUS=$(shell pkg-config --libs --cflags libmodbus)
-#LIBNCURSES=$(shell pkg-config ncurses --libs)
+ASTYLEFLAGS= -k1 -W3 -xg -xb -xj -xp -c -O -H
 
-LIBS+= $(LIBCONFIG) $(LIBMODBUS) 
-# $(LIBNCURSES)
+CC=$(CXX)
+
+# ==== Folders processing ===
+LDLIBS+=$(foreach lib,$(LIBS),$(shell pkg-config --libs --cflags $(lib)))
+
+ALLDIRS= $(foreach dir,$(SUBDIRS),$(shell find -L $(dir) -maxdepth 1 -type d))
+SRCDIRS=. $(ALLDIRS)
+
+$(shell mkdir $(OBJDIR) 2>/dev/null)
+$(foreach dir,$(SRCDIRS),$(shell mkdir $(OBJDIR)/$(dir) 2>/dev/null))
+
+SRCFILES=$(foreach dir,$(SRCDIRS),$(wildcard $(dir)/*.cpp))
+DEPFILES=$(foreach dir,$(SRCDIRS),$(wildcard $(OBJDIR)/$(dir)/*.cpp.d))
+
+OBJLIST =$(patsubst %.cpp,$(OBJDIR)/%.o,$(SRCFILES)) 
+OBJFILES=$(foreach dir,$(SRCDIRS),$(wildcard $(OBJDIR)/$(dir)/*.o))
+
+ASTYLEFILES=$(foreach dir,$(SRCDIRS),$(dir)/*.cpp,*.h)
+CLANGFILES =$(foreach dir,$(SRCDIRS),$(dir)/*.cpp $(dir)/*.h)
+
+OUTF=$(shell ls -Fog $(OUTFILE))
 
 
-#LIBS= -lconfig -lmodbus
-#INCLUDES = -I/usr/include/modbus
-#SOURCES=plc32.cpp plc_read.cpp
-#OBJECTS=$(SOURCES:.cpp=.o)
-#EXECUTABLE=hello
+# === "Stolen" here https://codeforces.com/blog/entry/15547
+WARN1_FLAGS= -Wextra -Wfatal-errors -pedantic -Wformat=2 -fconcepts
+WARN2_FLAGS= -Wshadow -Wfloat-equal -Wconversion -Wduplicated-cond
+WARN3_FLAGS= -Wshift-overflow=2 -Wcast-qual -Wcast-align -Wlogical-op
+GLIBC_FLAGS= -D_GLIBCXX_DEBUG -D_GLIBCXX_DEBUG_PEDANTIC -D_FORTIFY_SOURCE=2 
+SANIT_FLAGS= -fstack-protector -fsanitize=address -fsanitize=undefined -fno-sanitize-recover
+DEBUG_FLAGS= -g -DDEBUG_FLAG
 
-RED='\033[0;91m'
+CXXFLAGS+= $(WARN1_FLAGS)
+CXXFLAGS+= $(WARN2_FLAGS)
+CXXFLAGS+= $(WARN3_FLAGS)
+#CXXFLAGS+= $(GLIBC_FLAGS)
+#CXXFLAGS+= $(SANIT_FLAGS)
+#CXXFLAGS+= -fanalyzer
+
+# === Check for DEBUG build ===
+# === My Project depends! ===
+MESSAGE_DEBUG="==="
+
+# === Debug & other tricks ===
+
+ifeq ("check","$(filter check,$(MAKECMDGOALS))")
+OPTFLAGS=
+CPPFLAGS+= $(GLIBC_FLAGS)
+CXXFLAGS+= $(SANIT_FLAGS)
+#LDFLAGS+= $(GLIBC_FLAGS)
+LDFLAGS+= $(SANIT_FLAGS)
+MESSAGE=" with CHECK"
+$(info === FULL CHECK options activated! ===)
+endif
+
+ifeq ("debug","$(filter debug,$(MAKECMDGOALS))")
+OPTFLAGS=
+CPPFLAGS+= $(DEBUG_FLAGS)
+#LDFLAGS+= $(DEBUG_FLAGS)
+DO_DEBUG=YES
+MESSAGE=" with DEBUG"
+MESSAGE_DEBUG="=== The size of executable file are REALLY BIG. ==="
+$(info === DEDUG options activated! ===)
+endif
+
+ifeq ("fulldebug","$(filter fulldebug,$(MAKECMDGOALS))")
+OPTFLAGS=
+CXXFLAGS+= $(GLIBC_FLAGS)
+CXXFLAGS+= $(SANIT_FLAGS)
+CPPFLAGS+= $(DEBUG_FLAGS)
+LDFLAGS+= $(SANIT_FLAGS)
+LDFLAGS+= $(DEBUG_FLAGS)
+DO_DEBUG=YES
+MESSAGE=" FULL DEBUG!"
+MESSAGE_DEBUG="=== The size of executable file are EXTREMELY BIG. ==="
+$(info === FULL Debug options activated! ===)
+endif
+
+# === Colors (just for fun) ===
+RED='\033[0;91m' \033[32m<text> 
 GRE="\033[0;32m"
+GRB="\033[0;92m"
 YEL="\033[0;93m"
 YEB="\033[1;33m"
 BLU='\033[0;94m'
 WHI='\033[0;97m'
 NC='\033[0m' # No Color
 
-# === C/CPP flags configuretion ===
-
-LDFLAGS= -Wall
-CFLAGS= -c -Wall
-DEPFLAGS= -MD -MF
-ASFLAGS= -k1 -W3 -xg -xb -xj -xp -c -O -H
-
-WARN_FLAGS=  -Wextra -Wfatal-errors -pedantic -O2 -Wformat=2
-CHECK_FLAGS= -Wshadow -Wfloat-equal -Wconversion -Wduplicated-cond -Wlogical-op
-TYPES_FLAGS= -Wshift-overflow=2 -Wcast-qual -Wcast-align -fstack-protector
-GLIBC_FLAGS= -D_GLIBCXX_DEBUG -D_GLIBCXX_DEBUG_PEDANTIC -D_FORTIFY_SOURCE=2
-DEBUG_FLAGS= -g -fsanitize=address -fsanitize=undefined -fno-sanitize-recover
-
-CFLAGS+= $(CPP_VER)
-CFLAGS+= $(WARN_FLAGS)
-CFLAGS+= $(CHECK_FLAGS)
-CFLAGS+= $(TYPES_FLAGS)
-CFLAGS+= $(GLIBC_FLAGS)
-#CFLAGS+= -fanalyzer
-
-# === Check for DEBUG build ===
-
-$(info === The GOALS is: $(MAKECMDGOALS))
-
-ifeq ("debug","$(filter debug,$(MAKECMDGOALS))")
-CFLAGS+= $(DEBUG_FLAGS)
-LDFLAGS+= $(DEBUG_FLAGS)
-DO_DEBUG=YES
-$(info === Debug options activated! ===)
-endif
-
 # =====================================================================
 
-FULL_FLAGS= -Wall -Wextra -pedantic -O2 -Wshadow -Wformat=2 \
- -Wfloat-equal -Wconversion -Wlogical-op -Wshift-overflow=2 \
- -Wduplicated-cond -Wcast-qual -Wcast-align -D_GLIBCXX_DEBUG \
- -D_GLIBCXX_DEBUG_PEDANTIC -D_FORTIFY_SOURCE=2 \
- -fsanitize=address -fsanitize=undefined -fno-sanitize-recover \
- -fstack-protector
+include $(DEPFILES)
 
-#======================================================================
+all: $(OUTFILE)
+master: $(OUTFILE)
+slave: $(OUTFILE)
 
-SRCFORMAT1="./*.cpp,*.h"
-SRCFORMAT2="$(SRCDIR2)/*.cpp,*.h"
-SRCFORMAT3="$(SRCDIR3)/*.cpp,*.h"
-
-SRCLIST1= $(patsubst %.cpp,$(OBJDIR)/%.o,$(wildcard $(SRCDIR1)/*.cpp))
-SRCLIST2= $(patsubst %.cpp,$(OBJDIR)/%.o,$(wildcard $(SRCDIR2)/*.cpp)) 
-SRCLIST3= $(patsubst %.cpp,$(OBJDIR)/%.o,$(wildcard $(SRCDIR3)/*.cpp)) 
-SOURCELIST= $(SRCLIST1) $(SRCLIST2) $(SRCLIST3)
-
-DEPLIST1= $(wildcard $(OBJDIR)/$(SRCDIR1)/*.cpp.d)
-DEPLIST2= $(wildcard $(OBJDIR)/$(SRCDIR2)/*.cpp.d)
-DEPLIST3= $(wildcard $(OBJDIR)/$(SRCDIR3)/*.cpp.d)
-DEPLIST= $(DEPLIST1) $(DEPLIST2) $(DEPLIST3)
-
-include $(DEPLIST)
-
-#include $(wildcard $(OBJDIR)/*.cpp.d)
-
-# =============================================
-all: a.out
-
-debug: clean a.out
-
-libtest: a.out
+run: clean $(OUTFILE)
+check: clean $(OUTFILE)
+debug: clean $(OUTFILE)
+fulldebug: clean $(OUTFILE)
 
 # ================ Linking ================================
-#a.out: #$(patsubst %.cpp,$(OBJDIR)/%.o,$(wildcard *.cpp)) $(patsubst %.cpp,$(OBJDIR)/%.o,$(wildcard include/*.cpp))
-
-a.out: $(SOURCELIST)
-ifdef DO_DEBUG
-	@echo -e $(GRE)"=== Linking with DEBUG: $@"$(NC)
-else
-	@echo -e $(GRE)"=== Linking: $@"$(NC)
-endif
-	$(CC) $(LDFLAGS) $^ -o $@ $(LIBS)
-ifdef DO_DEBUG
-	@echo "==="
-	@echo "=== Finished with DEBUG! ==="
-	@echo "=== The size of executable file will be REALLY BIG. ==="
-	@echo "==="
-	sleep 3
-else
-	@echo -e $(GRE)"=== Ready. ==="$(NC)
-	@ls -Fog --color $@
-	@echo -e $(GRE)"=== Done. ==="$(NC)
+#a.out: $(OBJLIST)
+$(OUTFILE): $(OBJLIST)
+	@echo -e $(GRE)"=== Linking$(MESSAGE): $@"$(NC)
+	$(LINK.o) $(OPTFLAGS) $^ $(LDLIBS) -o $@
+	@echo -e $(GRE)"=== Finished$(MESSAGE) ==="$(NC)
+	@ls -Fog --color $(OUTFILE)
+	@echo -e $(GRE)$(MESSAGE_DEBUG)$(NC)
 	sleep 2
-endif
 
 #================== Compiling ==============================
 $(OBJDIR)/%.o: %.cpp
-ifeq ("YES","$(DO_DEBUG)")
-	@echo -e $(YEB)"=== Compiling with DEBUG: $<"$(NC)
-else
-	@echo -e $(YEL)"=== Compiling: $<"$(NC)
-endif
-	$(CC) $(CFLAGS) $(DEPFLAGS) $(OBJDIR)/$<.d -o $@ $<
-#	$(CC) -dumpdir obj/ $(CFLAGS) $(DEPFLAGS) ./obj/$<.d $<
-#       gcc -c -MD $<
+	@echo -e $(YEL)"=== Compiling$(MESSAGE): $<"$(NC)
+	$(COMPILE.cpp) $(INCLUDES) $(OPTFLAGS) $(DEPFLAGS)/$<.d -o $@ $<
 
 # ================== Cleaning =============================
 clean: format-linux
 	@echo -e $(BLU)"=== Cleaning UP..."$(NC)
-	rm -rfv $(OBJDIR)/*.o $(OBJDIR)/*.d
-	rm -rfv $(OBJDIR)/$(SRCDIR2)/*.o $(OBJDIR)/$(SRCDIR2)/*.d
-	rm -rfv $(OBJDIR)/$(SRCDIR3)/*.o $(OBJDIR)/$(SRCDIR3)/*.d
-	rm -rfv a.out
+#	@rm -rfv $(OBJFILES) $(DEPFILES)
+#	rm -rfv a.out
+	find . -type f \( -name "*.d" -or -name "*.o" -or -name "a.out" \) -print -delete
+
+	@echo $(SRCDIR1)
 
 # ================== Formatting ===========================
 # Simple format current directory only
@@ -152,32 +167,24 @@ google:
 	clang-format -i -style=google --verbose *.cpp *.h
 
 # ================ ALL FILE recursively! ==================
-# Reindent *.cpp to K&R code-style
-format-kr:
-	astyle $(ASFLAGS) -n --style=kr $(SRCFORMAT1), $(SRCFORMAT2), $(SRCFORMAT3)
-#"./*.cpp,*.h", "include/*.cpp,*.h"
-
 # Reindent *.cpp to Linux code-style
 format-linux:
-	astyle $(ASFLAGS) -n -s2 --style=linux $(SRCFORMAT1), $(SRCFORMAT2), $(SRCFORMAT3)
+	astyle $(ASTYLEFLAGS) -n -s2 --style=linux $(ASTYLEFILES)
 
-# Reindent *.cpp to Allman code-style
+format-kr:
+	astyle $(ASTYLEFLAGS) -n --style=kr $(ASTYLEFILES)
+
 format-allman:
-	astyle $(ASFLAGS) -n --style=allman $(SRCFORMAT1), $(SRCFORMAT2), $(SRCFORMAT3)
+	astyle $(ASTYLEFLAGS) -n --style=allman $(ASTYLEFILES)
 
-# Reindent *.cpp to Google code-style
 format-google2:
-	astyle $(ASFLAGS) -n -s2 --style=google $(SRCFORMAT1), $(SRCFORMAT2), $(SRCFORMAT3)
+	astyle $(ASTYLEFLAGS) -n -s2 --style=google $(ASTYLEFILES)
 
-# Reindent *.cpp to LLVM code-style
+# Reindent *.cpp to LLVM code-style by clang-format
 format-clang:
-	clang-format -i --verbose *.cpp *.h $(SRCDIR2)/*.cpp $(SRCDIR2)/*.h $(SRCDIR3)/*.cpp $(SRCDIR3)/*.h
+	clang-format -i -style=LLVM --verbose $(CLANGFILES)
 
-# Reindent *.cpp to Google code-style
 format-google:
-	clang-format -i -style=google --verbose *.cpp *.h $(SRCDIR2)/*.cpp $(SRCDIR2)/*.h $(SRCDIR3)/*.cpp $(SRCDIR3)/*.h
+	clang-format -i -style=google --verbose $(CLANGFILES)
 
-
-# =======================================
-#$(EXECUTABLE): $(OBJECTS)
-#	$(CC) $(LDFLAGS) $(OBJECTS) -o $@
+# ===
