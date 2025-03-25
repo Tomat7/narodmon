@@ -16,14 +16,15 @@ $(info === The GOALS is: $(MAKECMDGOALS))
 
 # === COMMON: Version/standard & Directories & files & libraries ===
 CXX_VER=c++20
-OUTFILE=plc
-OBJDIR =./tmp
-SUBDIRS= 
+EXEC_FILE=plc
+SRCDIRS= .
+SUBDIRS=
 #include sources
 INCLUDES = -I.
 LIBS=libmodbus
 #libconfig++ open62541
 LDLIBS= -lrt -lpthread -lmbedtls 
+OBJDIR =./tmp
 
 # === C/CPP flags configuration ===
 CXXFLAGS= -Wall -std=$(CXX_VER)
@@ -40,7 +41,7 @@ CC=$(CXX)
 LDLIBS+=$(foreach lib,$(LIBS),$(shell pkg-config --libs --cflags $(lib)))
 
 ALLDIRS= $(foreach dir,$(SUBDIRS),$(shell find -L $(dir) -maxdepth 1 -type d))
-SRCDIRS=. $(ALLDIRS)
+SRCDIRS+= $(ALLDIRS)
 
 $(shell mkdir $(OBJDIR) 2>/dev/null)
 $(foreach dir,$(SRCDIRS),$(shell mkdir $(OBJDIR)/$(dir) 2>/dev/null))
@@ -51,10 +52,10 @@ DEPFILES=$(foreach dir,$(SRCDIRS),$(wildcard $(OBJDIR)/$(dir)/*.cpp.d))
 OBJLIST =$(patsubst %.cpp,$(OBJDIR)/%.o,$(SRCFILES)) 
 OBJFILES=$(foreach dir,$(SRCDIRS),$(wildcard $(OBJDIR)/$(dir)/*.o))
 
+#OUTF=$(shell ls -Fog $(EXEC_FILE))
+
 ASTYLEFILES=$(foreach dir,$(SRCDIRS),$(dir)/*.cpp,*.h)
 CLANGFILES =$(foreach dir,$(SRCDIRS),$(dir)/*.cpp $(dir)/*.h)
-
-OUTF=$(shell ls -Fog $(OUTFILE))
 
 
 # === "Stolen" here https://codeforces.com/blog/entry/15547
@@ -125,22 +126,22 @@ NC='\033[0m' # No Color
 
 include $(DEPFILES)
 
-all: $(OUTFILE)
-master: $(OUTFILE)
-slave: $(OUTFILE)
+all: $(EXEC_FILE)
+master: $(EXEC_FILE)
+slave: $(EXEC_FILE)
 
-run: clean $(OUTFILE)
-check: clean $(OUTFILE)
-debug: clean $(OUTFILE)
-fulldebug: clean $(OUTFILE)
+run: clean $(EXEC_FILE)
+check: clean $(EXEC_FILE)
+debug: clean $(EXEC_FILE)
+fulldebug: clean $(EXEC_FILE)
 
 # ================ Linking ================================
 #a.out: $(OBJLIST)
-$(OUTFILE): $(OBJLIST)
+$(EXEC_FILE): $(OBJLIST)
 	@echo -e $(GRE)"=== Linking$(MESSAGE): $@"$(NC)
 	$(LINK.o) $(OPTFLAGS) $^ $(LDLIBS) -o $@
 	@echo -e $(GRE)"=== Finished$(MESSAGE) ==="$(NC)
-	@ls -Fog --color $(OUTFILE)
+	@ls -Fog --color $(EXEC_FILE)
 	@echo -e $(GRE)$(MESSAGE_DEBUG)$(NC)
 	sleep 2
 
@@ -153,10 +154,9 @@ $(OBJDIR)/%.o: %.cpp
 clean: format-linux
 	@echo -e $(BLU)"=== Cleaning UP..."$(NC)
 #	@rm -rfv $(OBJFILES) $(DEPFILES)
-#	rm -rfv a.out
+	@rm -rfv $(EXEC_FILE)
 	find . -type f \( -name "*.d" -or -name "*.o" -or -name "a.out" \) -print -delete
-
-	@echo $(SRCDIR1)
+#	@echo $(SRCDIR1)
 
 # ================== Formatting ===========================
 # Simple format current directory only
